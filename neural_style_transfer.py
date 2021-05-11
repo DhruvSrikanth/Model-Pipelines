@@ -64,21 +64,22 @@ class StyleTransferModel(tf.keras.models.Model):
         self.vgg = self.set_vgg_layers(layer_names = self.style_layers + self.content_layers)
         self.trainable = trainable
 
-		# Hyperparameters
-		self.learning_rate = learning_rate
-		self.beta_1 = beta_1
-		self.epsilon = epsilon
+        # Hyperparameters
+        self.learning_rate = learning_rate
+        self.beta_1 = beta_1
+        self.epsilon = epsilon
 
-		# Hyperparameters - weights of content loss, style loss and total variation loss
-		self.content_weight=content_weight
-		self.style_weight=style_weight
-		self.variation_weight=variation_weight
+        # Hyperparameters - weights of content loss, style loss and total variation loss
+        self.content_weight = content_weight
+        self.style_weight = style_weight
+        self.variation_weight = variation_weight
 
-		# Optimizer used
-		if optimizer_choice.lower() = 'adam':
-			self.opt = tf.optimizers.Adam(learning_rate=self.learning_rate, beta_1=self.beta_1, epsilon=self.epsilon)
-		else:
-			print('\nPlease choose another optimizer...\nPossible choices include-\n 1. Adam')
+        # Optimizer used
+        self.optimizer_choice = optimizer_choice
+        if optimizer_choice.lower() == 'adam':
+            self.opt = tf.optimizers.Adam(learning_rate=self.learning_rate, beta_1=self.beta_1, epsilon=self.epsilon)
+        else:
+            print('\nPlease choose another optimizer...\nPossible choices include-\n 1. Adam')
 
     # Base model
     def set_vgg_layers(self, inputs):
@@ -115,7 +116,7 @@ class StyleTransferModel(tf.keras.models.Model):
 
         return {'content': content_dict, 'style': style_dict}
 
-    @tf.function()
+    @tf.function
 	def total_loss(self, inputs):
 		'''Compute total loss inclusive of style loss, content loss and variation loss.'''
 		image = inputs
@@ -125,23 +126,23 @@ class StyleTransferModel(tf.keras.models.Model):
 		style_targets = self(style_image)['style']
 		style_outputs = outputs['style']
 		style_loss = tf.add_n([tf.reduce_mean((style_targets[name]-style_outputs[name])**2) for name in style_outputs.keys()])
-		style_loss *= style_weight / self.num_style_layers
+		style_loss *= self.style_weight / self.num_style_layers
 
 		# Content loss
 		content_targets = self(content_image)['content']
 		content_outputs = outputs['content']
 		content_loss = tf.add_n([tf.reduce_mean((content_targets[name]-content_outputs[name])**2) for name in content_outputs.keys()])
-		content_loss *= content_weight / self.num_content_layers
+		content_loss *= self.content_weight / self.num_content_layers
 
 		# Variation loss
-		variation_loss = variation_weight*tf.image.total_variation(image)
+		variation_loss = self.variation_weight*tf.image.total_variation(image)
 
 		# Total loss
 		total_loss = style_loss + content_loss + variation_loss
 
   		return [total_loss, content_loss, style_loss, variation_loss]
 
-	@tf.function()
+	@tf.function
 	def train_step(self, inputs):
 		'''Train model.'''
 		image = inputs
@@ -199,7 +200,7 @@ step = 0
 for n in range(epochs):
 	progBar = tf.keras.utils.Progbar(steps_per_epoch, stateful_metrics=['loss_fn'], verbose=1)
   	for m in range(steps_per_epoch):
-	    loss = train_step(image)
+	    loss = extractor.train_step(image)
 
 	    total_loss = loss[0].numpy()
 	    content_loss = loss[1].numpy()
