@@ -94,13 +94,13 @@ class StyleTransferModel(tf.keras.models.Model):
         return model
 
     def gram_matrix(self, inputs):
-	    '''Computes gram matrix.'''
-	    input_tensor = inputs
-	    result = tf.linalg.einsum('bijc,bijd->bcd', input_tensor, input_tensor)
-	    input_shape = tf.shape(input_tensor)
-	    num_locations = tf.cast(input_shape[1] * input_shape[2], tf.float32)
+        '''Computes gram matrix.'''
+        input_tensor = inputs
+        result = tf.linalg.einsum('bijc,bijd->bcd', input_tensor, input_tensor)
+        input_shape = tf.shape(input_tensor)
+        num_locations = tf.cast(input_shape[1] * input_shape[2], tf.float32)
 
-	    return result / (num_locations)
+        return result / (num_locations)
 
     def call(self, inputs):
         inputs = inputs * 255.0
@@ -117,44 +117,44 @@ class StyleTransferModel(tf.keras.models.Model):
         return {'content': content_dict, 'style': style_dict}
 
     @tf.function
-	def total_loss(self, inputs):
-		'''Compute total loss inclusive of style loss, content loss and variation loss.'''
-		image = inputs
-		outputs = self(image)
+    def total_loss(self, inputs):
+        '''Compute total loss inclusive of style loss, content loss and variation loss.'''
+        image = inputs
+        outputs = self(image)
 
-		# Style loss
-		style_targets = self(style_image)['style']
-		style_outputs = outputs['style']
-		style_loss = tf.add_n([tf.reduce_mean((style_targets[name]-style_outputs[name])**2) for name in style_outputs.keys()])
-		style_loss *= self.style_weight / self.num_style_layers
+        # Style loss
+        style_targets = self(style_image)['style']
+        style_outputs = outputs['style']
+        style_loss = tf.add_n([tf.reduce_mean((style_targets[name]-style_outputs[name])**2) for name in style_outputs.keys()])
+        style_loss *= self.style_weight / self.num_style_layers
 
-		# Content loss
-		content_targets = self(content_image)['content']
-		content_outputs = outputs['content']
-		content_loss = tf.add_n([tf.reduce_mean((content_targets[name]-content_outputs[name])**2) for name in content_outputs.keys()])
-		content_loss *= self.content_weight / self.num_content_layers
+        # Content loss
+        content_targets = self(content_image)['content']
+        content_outputs = outputs['content']
+        content_loss = tf.add_n([tf.reduce_mean((content_targets[name]-content_outputs[name])**2) for name in content_outputs.keys()])
+        content_loss *= self.content_weight / self.num_content_layers
 
-		# Variation loss
-		variation_loss = self.variation_weight*tf.image.total_variation(image)
+        # Variation loss
+        variation_loss = self.variation_weight*tf.image.total_variation(image)
 
-		# Total loss
-		total_loss = style_loss + content_loss + variation_loss
+        # Total loss
+        total_loss = style_loss + content_loss + variation_loss
 
-  		return [total_loss, content_loss, style_loss, variation_loss]
+        return [total_loss, content_loss, style_loss, variation_loss]
 
-	@tf.function
-	def train_step(self, inputs):
-		'''Train model.'''
-		image = inputs
+    @tf.function
+    def train_step(self, inputs):
+        '''Train model.'''
+        image = inputs
 
-	    with tf.GradientTape() as tape:
-	    	loss = self.total_loss(image)
-	    	total_loss = loss[0]
-	    grad = tape.gradient(total_loss, image)
-	    self.opt.apply_gradients([(grad, image)])
-	    image.assign(tf.clip_by_value(image, clip_value_min=0.0, clip_value_max=1.0))
+        with tf.GradientTape() as tape:
+            loss = self.total_loss(image)
+            total_loss = loss[0]
+        grad = tape.gradient(total_loss, image)
+        self.opt.apply_gradients([(grad, image)])
+        image.assign(tf.clip_by_value(image, clip_value_min=0.0, clip_value_max=1.0))
 
-		return loss
+        return loss
 
 
 # Input config
@@ -198,14 +198,14 @@ image = tf.Variable(content_image)
 
 step = 0
 for n in range(epochs):
-	progBar = tf.keras.utils.Progbar(steps_per_epoch, stateful_metrics=['loss_fn'], verbose=1)
-  	for m in range(steps_per_epoch):
-	    loss = extractor.train_step(image)
+    progBar = tf.keras.utils.Progbar(steps_per_epoch, stateful_metrics=['loss_fn'], verbose=1)
+    for m in range(steps_per_epoch):
+        loss = extractor.train_step(image)
 
-	    total_loss = loss[0].numpy()
-	    content_loss = loss[1].numpy()
-	    style_loss= loss[2].numpy()
-	    variation_loss = loss[3].numpy()
+        total_loss = loss[0].numpy()
+        content_loss = loss[1].numpy()
+        style_loss= loss[2].numpy()
+        variation_loss = loss[3].numpy()
 
         values = [('total loss', total_loss), ('content loss', content_loss), ('style loss', style_loss), ('variation loss', variation_loss)]
         progBar.add(1, values)
